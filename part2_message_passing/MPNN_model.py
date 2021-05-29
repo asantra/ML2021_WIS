@@ -7,7 +7,8 @@ import torch.nn.functional as F
 from torch.nn import Conv2d,ReLU,MaxPool2d,Linear
 import dgl
 
-
+node_hidden_dim = 12
+edge_hidden_dim = 12
 #this function is the edge update function - 
 
 class EdgeNetwork(nn.Module):
@@ -72,13 +73,13 @@ class NodeNetwork(nn.Module):
         # return a new hidden state for the node
         
         x.mailbox['edge hidden representation'] # what shape does this have? 
-        print("edge hidden representation  shape", x.mailbox['edge hidden representation'].shape)
+        #print("edge hidden representation  shape", x.mailbox['edge hidden representation'].shape)
 
         message_sum = torch.sum(x.mailbox['edge hidden representation'],dim=1) # what dimension are you summing over?
         
         # the current hidden rep of the nodes
         x.data['node_hidden_rep']
-        print("node hidden representation  shape", x.data['node_hidden_rep'].shape)
+        #print("node hidden representation  shape", x.data['node_hidden_rep'].shape)
 
 
         input_data = torch.cat([message_sum, x.data['node_features'], x.data['node_hidden_rep']], dim=1)
@@ -93,23 +94,26 @@ class NodeNetwork(nn.Module):
 
 
 class Classifier(nn.Module):
-    def __init__(self,inputsize,hidden_layer_size,output_size):
+    def __init__(self):
         super().__init__()
 
         # a network to init the hidden rep of the nodes
         self.node_init = nn.Sequential(
-                       nn.Linear(inputsize,hidden_layer_size),
+                       nn.Linear(2,node_hidden_dim-2),
                        nn.ReLU(),
-                       nn.Linear(hidden_layer_size,hidden_layer_size),
+                       nn.Linear(node_hidden_dim-2,node_hidden_dim-2),
                        nn.ReLU(),
-                       nn.Linear(hidden_layer_size, output_size))
+                       nn.Linear(node_hidden_dim-2, node_hidden_dim))
         
-        self.edge_network    = EdgeNetwork(inputsize,hidden_layer_size,output_size)
-        self.node_network    = NodeNetwork(inputsize,hidden_layer_size,output_size)
-        self.edge_classifier = EdgeNetwork(inputsize,hidden_layer_size,output_size) # remember the output size should be configurable!
-        self.node_classifier = nn.Sequential(nn.Linear(inputsize,hidden_layer_size,output_size),
-                               nn.ReLU(),
-                               nn.Linear(hidden_layer_size,output_size))
+        self.edge_network    = EdgeNetwork(2*(2+node_hidden_dim)+1,edge_hidden_dim-2,edge_hidden_dim)
+        self.node_network    = NodeNetwork(2+edge_hidden_dim+node_hidden_dim,node_hidden_dim-2,node_hidden_dim)
+        self.edge_classifier = EdgeNetwork(2*(2+node_hidden_dim)+1,node_hidden_dim,1) # remember the output size should be configurable!
+        self.node_classifier = nn.Sequential(
+                                 nn.Linear(node_hidden_dim,node_hidden_dim-2),
+                                 nn.ReLU(),
+                                 nn.Linear(node_hidden_dim-2, 1)
+                               )
+        
         
         
         
@@ -135,7 +139,7 @@ class Classifier(nn.Module):
             g.edata['prediction']+= prediction
                 
                 
-            g.ndata['prediction']+= self.node_classifier( g.ndata['edge hidden representation'] ).view(-1)
+            g.ndata['prediction']+= self.node_classifier( g.ndata['node_hidden_rep'] ).view(-1)
                 
   
 
