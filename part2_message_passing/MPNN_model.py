@@ -16,9 +16,9 @@ class EdgeNetwork(nn.Module):
         super().__init__()
         
         self.net = nn.Sequential(
-            nn.Linear(inputsize, hidden_layer_size),
+            nn.Linear(inputsize, hidden_layer_size*2),
             nn.ReLU(),
-            nn.Linear(hidden_layer_size, hidden_layer_size),
+            nn.Linear(hidden_layer_size*2, hidden_layer_size),
             nn.ReLU(),
             nn.Linear(hidden_layer_size, output_size)
         )
@@ -51,9 +51,9 @@ class NodeNetwork(nn.Module):
 
         
         self.net = nn.Sequential(
-            nn.Linear(inputsize, hidden_layer_size),
+            nn.Linear(inputsize, hidden_layer_size*2),
             nn.ReLU(),
-            nn.Linear(hidden_layer_size, hidden_layer_size),
+            nn.Linear(hidden_layer_size*2, hidden_layer_size),
             nn.ReLU(),
             nn.Linear(hidden_layer_size, output_size)
             )
@@ -99,19 +99,21 @@ class Classifier(nn.Module):
 
         # a network to init the hidden rep of the nodes
         self.node_init = nn.Sequential(
-                       nn.Linear(2,node_hidden_dim-2),
+                       nn.Linear(2,node_hidden_dim*4+2),
                        nn.ReLU(),
-                       nn.Linear(node_hidden_dim-2,node_hidden_dim-2),
+                       nn.Linear(node_hidden_dim*4+2,node_hidden_dim*4+2),
                        nn.ReLU(),
-                       nn.Linear(node_hidden_dim-2, node_hidden_dim))
+                       nn.Linear(node_hidden_dim*4+2, node_hidden_dim))
         
-        self.edge_network    = EdgeNetwork(2*(2+node_hidden_dim)+1,edge_hidden_dim-2,edge_hidden_dim)
-        self.node_network    = NodeNetwork(2+edge_hidden_dim+node_hidden_dim,node_hidden_dim-2,node_hidden_dim)
-        self.edge_classifier = EdgeNetwork(2*(2+node_hidden_dim)+1,node_hidden_dim,1) # remember the output size should be configurable!
+        self.edge_network    = EdgeNetwork(2*(2+node_hidden_dim)+1,edge_hidden_dim*4+2,edge_hidden_dim)
+        self.node_network    = NodeNetwork(2+edge_hidden_dim+node_hidden_dim,edge_hidden_dim*4+2,node_hidden_dim)
+        self.edge_classifier = EdgeNetwork(2*(2+node_hidden_dim)+1,edge_hidden_dim*4+2,1) # remember the output size should be configurable!
         self.node_classifier = nn.Sequential(
-                                 nn.Linear(node_hidden_dim,node_hidden_dim-2),
+                                 nn.Linear(node_hidden_dim,edge_hidden_dim*4+2),
                                  nn.ReLU(),
-                                 nn.Linear(node_hidden_dim-2, 1)
+                                 nn.Linear(edge_hidden_dim*4+2, edge_hidden_dim),
+                                 nn.ReLU(),
+                                 nn.Linear(edge_hidden_dim, 1)
                                )
         
         
